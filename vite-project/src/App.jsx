@@ -1,3 +1,4 @@
+import InputField from "./components/InputField";
 import {useState} from "react";
 function App() {
   const[email,setEmail] = useState("");
@@ -22,13 +23,7 @@ function App() {
 
       <p>Welcome to my Chat Application</p>
 
-      <p>Email</p>
-      <input 
-        type="text" 
-        placeholder="Enter Email" 
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+      <InputField />
 
       <p>Password</p>
       <input type="password" placeholder="Enter Password" 
