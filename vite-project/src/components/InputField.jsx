@@ -1,10 +1,12 @@
-function InputField() {
+function InputField(props) {
   return (
     <div>
-      <p>Email</p>
+      <p>{props.label}</p>
       <input
-        type="text"
-        placeholder="Enter Email"
+        type={props.type}
+        placeholder={props.placeholder}
+        value={props.value}
+        onChange={props.onChange}
       />
     </div>
   );
