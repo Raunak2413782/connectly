@@ -23,7 +23,10 @@ function App() {
 
       <p>Welcome to my Chat Application</p>
 
-      <InputField />
+      <InputField 
+      label="Email"  
+      placeholder="Enter Email" 
+      />
 
       <p>Password</p>
       <input type="password" placeholder="Enter Password" 
