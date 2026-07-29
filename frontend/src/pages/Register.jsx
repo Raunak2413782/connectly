@@ -7,7 +7,7 @@ function Register(){
         const[password,setPassword] = useState("");
         const [confirmPassword, setConfirmPassword] = useState("");
 
-        function handleRegister(){
+        async function handleRegister(){
             if(email==="" || password==="" || confirmPassword===""){
                 alert("Please enter email and password");
                 return;
@@ -19,6 +19,17 @@ function Register(){
                 return;
             }
             console.log("Registration Successful");
+            const response = await fetch("http://localhost:3000/register",{
+                method:"POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email,
+                    password
+                })
+            });
+            console.log(response);
         }
     return (
         <div>
