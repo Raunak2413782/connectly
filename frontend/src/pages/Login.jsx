@@ -1,11 +1,14 @@
-import {useState} from "react";
+import { useState } from "react";
 import InputField from "../components/InputField";
-import {Link} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import API from "../api/axios";
 function Login(){
-     const[email,setEmail] = useState("");
+  const navigate = useNavigate();
+
+  const[email,setEmail] = useState("");
   const[password,setPassword] = useState("");
 
-  function handleLogin() {
+  async function handleLogin() {
     if(email==="" || password===""){
         alert("please enter email and password");
         return;
@@ -13,9 +16,32 @@ function Login(){
       alert("password must be greater than 6");
       return;
     }
-        console.log("Email: ",email);
-        console.log("Password: ",password);
-        console.log("Login Successful");
+
+    try {
+        const response = await API.post("/login", {
+            email,
+            password
+        });
+
+        console.log(response.data);
+        
+        localStorage.setItem("token", response.data.token);
+
+        alert(response.data.message);
+
+        navigate("/profile");
+
+    } catch (error) {
+
+        console.log(error);
+
+        if (error.response) {
+            alert(error.response.data);
+        } else {
+            alert("Login Failed");
+        }
+
+    }
 }
   
   return (
