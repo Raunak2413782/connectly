@@ -6,6 +6,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const User = require("./models/User");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 app.use(express.json());
 app.use(cors());
@@ -65,7 +66,16 @@ app.post("/login", async (req, res) => {
         return res.send("Invalid Password");
     }
 
-    return res.send("Login Successful");
+    const token = jwt.sign(
+        { id: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+    );
+
+    return res.json({
+        message: "Login Successful",
+        token
+    });
 
 });
 
