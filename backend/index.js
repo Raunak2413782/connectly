@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const User = require("./models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const auth = require("./middleware/auth");
 
 app.use(express.json());
 app.use(cors());
@@ -76,6 +77,14 @@ app.post("/login", async (req, res) => {
         message: "Login Successful",
         token
     });
+
+});
+
+app.get("/profile", auth, async (req, res) => {
+
+    const user = await User.findById(req.user.id).select("-password");
+
+    res.json(user);
 
 });
 
