@@ -1,32 +1,76 @@
+require("dotenv").config();
+
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const mongoose = require("mongoose");
+const User = require("./models/User");
+const bcrypt = require("bcrypt");
+
 app.use(express.json());
 app.use(cors());
-app.options("*", cors());
 
-app.get("/", (req, res) => {
-    res.send("Connectly Backend Running");
-});
+// console.log(process.env.MONGO_URI);
+// mongoose.connect(process.env.MONGO_URI)
+// .then(() => {
+//     console.log("MongoDB Connected");
+// })
+// .catch((err) => {
+//     console.log(err);
+// });
 
-app.options("/register", (req, res) => {
-    console.log("OPTIONS request received");
-    res.sendStatus(204);
-});
+// app.get("/", (req, res) => {
+//     res.send("Connectly Backend Running");
+// });
 
-app.post("/register", (req, res) => {
+async function connectDB() {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log("✅ MongoDB Connected");
+    } catch (err) {
+        console.log("❌ Error Name:", err.name);
+        console.log("❌ Error Message:", err.message);
+    }
+}
+
+connectDB();
+
+app.post("/register", async (req, res) => {
     console.log(req.body);
-    console.log("Email: ",req.body.email);
-    console.log("Password: ",req.body.password);
+    const { name, email, password, dob } = req.body;
 
-    const{email,password} = req.body;
     if(email==="" || password===""){
         return res.send("Please enter email and password");
     }else if(password.length<6){
         return res.send("Password must be at least 6 characters long");
     }
 
-    res.send("Register API Working");
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+    return res.send("User not found");
+    }
+
+});
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = new User({
+        name,
+        email,
+        password:hashedPassword,
+        dob
+        });
+
+        await newUser.save();
+        return res.send("User Registered Successfully");
+    }
+    catch(err) {
+        console.log(err);
+        return res.send("Something went wrong");
+    }
 });
 
 app.listen(3000, () => {
