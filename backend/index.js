@@ -10,18 +10,6 @@ const bcrypt = require("bcrypt");
 app.use(express.json());
 app.use(cors());
 
-// console.log(process.env.MONGO_URI);
-// mongoose.connect(process.env.MONGO_URI)
-// .then(() => {
-//     console.log("MongoDB Connected");
-// })
-// .catch((err) => {
-//     console.log(err);
-// });
-
-// app.get("/", (req, res) => {
-//     res.send("Connectly Backend Running");
-// });
 
 async function connectDB() {
     try {
@@ -45,15 +33,6 @@ app.post("/register", async (req, res) => {
         return res.send("Password must be at least 6 characters long");
     }
 
-app.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-    return res.send("User not found");
-    }
-
-});
-
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -71,6 +50,23 @@ app.post("/login", async (req, res) => {
         console.log(err);
         return res.send("Something went wrong");
     }
+});
+
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+    return res.send("User not found");
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+        return res.send("Invalid Password");
+    }
+
+    return res.send("Login Successful");
+
 });
 
 app.listen(3000, () => {
