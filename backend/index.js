@@ -94,6 +94,28 @@ app.get("/profile", auth, async (req, res) => {
 
 });
 
+app.get("/users", auth, async (req, res) => {
+console.log("Decoded JWT:", req.user);
+    try {
+
+        const search = req.query.search || "";
+
+        const users = await User.find({
+            name: { $regex: search, $options: "i" },
+            _id: { $ne: req.user.id }
+        }).select("-password");
+
+        res.json(users);
+
+    } catch (error) {
+
+        console.log(error);
+        res.status(500).send("Server Error");
+
+    }
+
+});
+
 app.listen(3000, () => {
     console.log("Server is running on port 3000");
 });
