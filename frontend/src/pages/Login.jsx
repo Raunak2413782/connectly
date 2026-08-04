@@ -2,6 +2,7 @@ import { useState } from "react";
 import InputField from "../components/InputField";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api/axios";
+import AuthHeader from "../components/AuthHeader";
 function Login(){
   const navigate = useNavigate();
 
@@ -45,38 +46,48 @@ function Login(){
 }
   
   return (
-    <div className="container">
-      <h1>Connectly</h1>
-
-      <p>Welcome to my Chat Application</p>
-
-      <InputField 
-      label="Email"  
-      placeholder="Enter Email" 
-      type="text" 
-      value={email} 
-      onChange={(e)=>setEmail(e.target.value)}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-green-950 flex items-center justify-center px-4">
+    <div className="w-full max-w-md bg-slate-800/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-slate-700">
+      <AuthHeader
+        title="Connectly"
+        subtitle="Welcome Back 👋"
       />
 
-      <InputField 
-      label="Password"
-      placeholder="Enter Password" 
-      type="password"
-      value={password}
-      onChange={(e)=>setPassword(e.target.value)}
+      <InputField
+        label="Email"
+        placeholder="Enter Email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
       />
-      <br />
-      <br />
 
-      <button onClick={handleLogin}>Login</button>
-      {/* <h3>Your Email: {email}</h3> */}
+      <InputField
+        label="Password"
+        placeholder="Enter Password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button
+        onClick={handleLogin}
+        className="w-full bg-green-500 hover:bg-green-600 active:scale-95 transition-all duration-200 text-white font-semibold py-3 rounded-lg mt-6 shadow-lg"
+      >
+        Login
+      </button>
+
+      <p className="text-center text-gray-400 mt-6">
+        Don't have an account?
+      </p>
 
       <Link to="/register">
-        <button>Register</button>
+        <button className="w-full mt-3 border border-green-500 text-green-400 py-3 rounded-lg hover:bg-green-500 hover:text-white active:scale-95 transition-all duration-200">
+          Register
+        </button>
       </Link>
 
-      <h2>Made by Raunak</h2>
     </div>
-  );
+  </div>
+);
 }
 export default Login;
