@@ -34,6 +34,40 @@ function SearchUsers() {
 
     }, [search]);
 
+async function sendFriendRequest(receiverId) {
+
+    try {
+
+        const token = localStorage.getItem("token");
+
+        const response = await API.post(
+            "/friend-request",
+            {
+                receiverId
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        alert(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+        if (error.response) {
+            alert(error.response.data);
+        } else {
+            alert("Something went wrong");
+        }
+
+    }
+
+} 
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-green-950 flex justify-center items-start pt-16 px-4">
 
@@ -94,7 +128,8 @@ function SearchUsers() {
 
                                 </div>
 
-                                <button 
+                                <button
+                                    onClick={() => sendFriendRequest(user._id)}
                                     className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg transition shrink-0"
                                 >
                                     Add Friend

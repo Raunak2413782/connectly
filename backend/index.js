@@ -5,6 +5,7 @@ const app = express();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const User = require("./models/User");
+const FriendRequest = require("./models/FriendRequest");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const auth = require("./middleware/auth");
@@ -95,7 +96,6 @@ app.get("/profile", auth, async (req, res) => {
 });
 
 app.get("/users", auth, async (req, res) => {
-console.log("Decoded JWT:", req.user);
     try {
 
         const search = req.query.search || "";
@@ -106,6 +106,45 @@ console.log("Decoded JWT:", req.user);
         }).select("-password");
 
         res.json(users);
+
+    } catch (error) {
+
+        console.log(error);
+        res.status(500).send("Server Error");
+
+    }
+
+});
+
+app.post("/friend-request", auth, async (req, res) => {
+
+    try {
+
+        const { receiverId } = req.body;
+
+        // User khud ko request nahi bhej sakta
+        if (receiverId === req.user.id) {
+            return res.status(400).send("You cannot send a request to yourself");
+        }
+
+        // Check duplicate request
+        const existingRequest = await FriendRequest.findOne({
+            sender: req.user.id,
+            receiver: receiverId
+        });
+
+        if (existingRequest) {
+            return res.status(400).send("Friend request already sent");
+        }
+
+        const friendRequest = new FriendRequest({
+            sender: req.user.id,
+            receiver: receiverId
+        });
+
+        await friendRequest.save();
+
+        res.send("Friend request sent");
 
     } catch (error) {
 
