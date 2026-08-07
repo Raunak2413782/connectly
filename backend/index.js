@@ -143,8 +143,82 @@ app.post("/friend-request", auth, async (req, res) => {
         });
 
         await friendRequest.save();
-
         res.send("Friend request sent");
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).send("Server Error");
+    }
+});
+
+app.get("/friend-requests", auth, async (req, res) => {
+
+    try {
+
+        const requests = await FriendRequest.find({
+            receiver: req.user.id,
+            status: "pending"
+        }).populate("sender", "name email");
+
+        res.json(requests);
+
+    } catch (error) {
+
+        console.log(error);
+        res.status(500).send("Server Error");
+
+    }
+
+});
+
+app.put("/friend-request/:id/accept", auth, async (req, res) => {
+
+    try {
+
+        const request = await FriendRequest.findById(req.params.id);
+
+        if (!request) {
+            return res.status(404).send("Request not found");
+        }
+
+        if (request.receiver.toString() !== req.user.id) {
+            return res.status(403).send("Unauthorized");
+        }
+
+        request.status = "accepted";
+
+        await request.save();
+
+        res.send("Friend request accepted");
+
+    } catch (error) {
+
+        console.log(error);
+        res.status(500).send("Server Error");
+
+    }
+
+});
+
+app.put("/friend-request/:id/reject", auth, async (req, res) => {
+
+    try {
+
+        const request = await FriendRequest.findById(req.params.id);
+
+        if (!request) {
+            return res.status(404).send("Request not found");
+        }
+
+        if (request.receiver.toString() !== req.user.id) {
+            return res.status(403).send("Unauthorized");
+        }
+
+        request.status = "rejected";
+
+        await request.save();
+
+        res.send("Friend request rejected");
 
     } catch (error) {
 
