@@ -4,6 +4,7 @@ import Profile from "./pages/Profile";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import SearchUsers from "./pages/SearchUsers";
 import FriendRequests from "./pages/FriendRequests";
+import Friends from "./pages/Friends";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/search" element={<SearchUsers />} />
         <Route path="/requests" element={<FriendRequests />} />
+        <Route path="/friends" element={<Friends />} />
       </Routes>
     </BrowserRouter>
   );
