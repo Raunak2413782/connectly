@@ -55,11 +55,14 @@ function Chat() {
     }, [messages]);
 
     useEffect(() => {
+            const token = localStorage.getItem("token");
             const newSocket = io("http://localhost:3000", {
-        auth: {
-            userId: localStorage.getItem("userId")
-        }
-    });
+            auth: {
+                token: token
+            }
+        });
+
+
 
     socket.current = newSocket;
 
