@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import API from "../api/axios";
+import { io } from "socket.io-client";
 
 function Chat() {
 
@@ -9,6 +10,9 @@ function Chat() {
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState("");
     const [loading, setLoading] = useState(true);
+
+    const messagesEndRef = useRef(null);
+    const socket = useRef(null);
 
     const token = localStorage.getItem("token");
 
@@ -42,39 +46,68 @@ function Chat() {
 
     }, [friendId, token]);
 
-    async function sendMessage() {
+    useEffect(() => {
+
+        messagesEndRef.current?.scrollIntoView({
+            behavior: "smooth"
+        });
+
+    }, [messages]);
+
+    useEffect(() => {
+            const newSocket = io("http://localhost:3000", {
+        auth: {
+            userId: localStorage.getItem("userId")
+        }
+    });
+
+    socket.current = newSocket;
+
+    newSocket.on("connect", () => {
+        console.log("🟢 Socket connected:", newSocket.id);
+    });
+
+    newSocket.on("receive_message", (message) => {
+
+        console.log("📩 New message:", message);
+
+        setMessages((prevMessages) => [
+            ...prevMessages,
+            message
+        ]);
+    });
+
+    newSocket.on("message_error", (error) => {
+        console.log("❌ Message error:", error.message);
+    });
+
+    return () => {
+
+        console.log("🔴 Disconnecting socket:", newSocket.id);
+
+        newSocket.disconnect();
+
+    };
+
+}, []);
+
+    function sendMessage() {
 
         if (text.trim() === "") {
             return;
         }
 
-        try {
-
-            const response = await API.post(
-                "/messages",
-                {
-                    receiverId: friendId,
-                    text: text.trim()
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
-            );
-
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                response.data
-            ]);
-
-            setText("");
-
-        } catch (error) {
-
-            console.log(error);
-
+        if (!socket.current || !socket.current.connected) {
+            console.log("❌ Socket is not connected");
+            return;
         }
+
+        socket.current.emit("send_message", {
+            receiverId: friendId,
+            text: text.trim()
+        });
+
+        setText("");
 
     }
 
@@ -136,6 +169,8 @@ function Chat() {
                         ))
 
                     )}
+
+                    <div ref={messagesEndRef} />
 
                 </div>
 
