@@ -12,6 +12,7 @@ const auth = require("./middleware/auth");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const friendRoutes = require("./routes/friendRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +20,7 @@ connectDB();
 app.use(authRoutes);
 app.use(userRoutes);
 app.use(friendRoutes);
+app.use(messageRoutes);
 
 app.listen(3000, () => {
     console.log("Server is running on port 3000");

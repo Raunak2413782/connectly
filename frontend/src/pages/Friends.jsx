@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import API from "../api/axios";
+import { useNavigate } from "react-router-dom";
 
 function Friends() {
 
     const [friends, setFriends] = useState([]);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
 
@@ -95,6 +97,7 @@ function Friends() {
                                 </div>
 
                                 <button
+                                    onClick={() => navigate(`/chat/${friend._id}`)}
                                     className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg transition"
                                 >
                                     Message

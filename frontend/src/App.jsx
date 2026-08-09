@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import SearchUsers from "./pages/SearchUsers";
 import FriendRequests from "./pages/FriendRequests";
 import Friends from "./pages/Friends";
+import Chat from "./pages/Chat";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/search" element={<SearchUsers />} />
         <Route path="/requests" element={<FriendRequests />} />
         <Route path="/friends" element={<Friends />} />
+        <Route path="/chat/:friendId" element={<Chat />} />
       </Routes>
     </BrowserRouter>
   );
