@@ -1,8 +1,10 @@
 const express = require("express");
+const { body, param } = require("express-validator");
 
 const router = express.Router();
 
 const auth = require("../middleware/auth");
+const validate = require("../middleware/validate");
 
 const {
     sendFriendRequest,
@@ -13,15 +15,92 @@ const {
 } = require("../controllers/friendController");
 
 
-router.post("/friend-request", auth, sendFriendRequest);
+// =========================
+// SEND FRIEND REQUEST
+// =========================
 
-router.get("/friend-requests", auth, getFriendRequests);
+router.post(
+    "/friend-request",
 
-router.put("/friend-request/:id/accept", auth, acceptFriendRequest);
+    auth,
 
-router.put("/friend-request/:id/reject", auth, rejectFriendRequest);
+    [
+        body("receiverId")
+            .notEmpty()
+            .withMessage("Receiver ID is required")
 
-router.get("/friends", auth, getFriends);
+            .isMongoId()
+            .withMessage("Invalid receiver ID")
+    ],
+
+    validate,
+
+    sendFriendRequest
+);
+
+
+// =========================
+// GET FRIEND REQUESTS
+// =========================
+
+router.get(
+    "/friend-requests",
+    auth,
+    getFriendRequests
+);
+
+
+// =========================
+// ACCEPT FRIEND REQUEST
+// =========================
+
+router.put(
+    "/friend-request/:id/accept",
+
+    auth,
+
+    [
+        param("id")
+            .isMongoId()
+            .withMessage("Invalid request ID")
+    ],
+
+    validate,
+
+    acceptFriendRequest
+);
+
+
+// =========================
+// REJECT FRIEND REQUEST
+// =========================
+
+router.put(
+    "/friend-request/:id/reject",
+
+    auth,
+
+    [
+        param("id")
+            .isMongoId()
+            .withMessage("Invalid request ID")
+    ],
+
+    validate,
+
+    rejectFriendRequest
+);
+
+
+// =========================
+// GET FRIENDS
+// =========================
+
+router.get(
+    "/friends",
+    auth,
+    getFriends
+);
 
 
 module.exports = router;
