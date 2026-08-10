@@ -22,6 +22,7 @@ const messageRoutes = require("./routes/messageRoutes");
 
 // Middleware
 const socketAuth = require("./middleware/socketAuth");
+const errorHandler = require("./middleware/errorHandler");
 
 //socket
 const chatSocket = require("./socket/chatSocket");
@@ -51,6 +52,8 @@ app.use(authRoutes);
 app.use(userRoutes);
 app.use(friendRoutes);
 app.use(messageRoutes);
+
+app.use(errorHandler);
 
 
 // =========================
