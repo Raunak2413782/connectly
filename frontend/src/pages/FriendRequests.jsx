@@ -23,7 +23,12 @@ function FriendRequests() {
                 }
             });
 
-            setRequests(response.data);
+            const data = response.data;
+            setRequests(
+                Array.isArray(data)
+                    ? data
+                    : data.requests || []
+            );
 
         } catch (error) {
 

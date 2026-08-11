@@ -1,5 +1,11 @@
 const Message = require("../models/Message");
 const Friend = require("../models/Friend");
+const User = require("../models/User");
+
+
+// =========================
+// SEND MESSAGE
+// =========================
 
 exports.sendMessage = async (req, res) => {
 
@@ -7,11 +13,25 @@ exports.sendMessage = async (req, res) => {
 
         const { receiverId, text } = req.body;
 
-        if (!receiverId || !text || text.trim() === "") {
-            return res.status(400).send("Receiver and message are required");
+        // Check receiver exists
+        const receiver = await User.findById(receiverId);
+
+        if (!receiver) {
+            return res.status(404).json({
+                success: false,
+                message: "Receiver not found"
+            });
         }
 
-        // Check whether users are friends
+        // User cannot message himself
+        if (receiverId === req.user.id) {
+            return res.status(400).json({
+                success: false,
+                message: "You cannot message yourself"
+            });
+        }
+
+        // Check friendship
         const friendship = await Friend.findOne({
             $or: [
                 {
@@ -26,27 +46,43 @@ exports.sendMessage = async (req, res) => {
         });
 
         if (!friendship) {
-            return res.status(403).send("You can only message your friends");
+            return res.status(403).json({
+                success: false,
+                message: "You can only message your friends"
+            });
         }
 
+        // Create message
         const message = new Message({
             sender: req.user.id,
             receiver: receiverId,
             text: text.trim()
         });
 
-        await message.save();
+        const savedMessage = await message.save();
 
-        res.status(201).json(message);
+        return res.status(201).json({
+            success: true,
+            message: savedMessage
+        });
 
     } catch (error) {
 
-        console.log(error);
-        res.status(500).send("Server Error");
+        console.log("Send message error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server Error"
+        });
 
     }
 
 };
+
+
+// =========================
+// GET MESSAGES
+// =========================
 
 exports.getMessages = async (req, res) => {
 
@@ -54,7 +90,25 @@ exports.getMessages = async (req, res) => {
 
         const { userId } = req.params;
 
-        // Check whether users are friends
+        // Check user exists
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // User cannot view conversation with himself
+        if (userId === req.user.id) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid conversation"
+            });
+        }
+
+        // Check friendship
         const friendship = await Friend.findOne({
             $or: [
                 {
@@ -69,9 +123,13 @@ exports.getMessages = async (req, res) => {
         });
 
         if (!friendship) {
-            return res.status(403).send("You can only view messages with your friends");
+            return res.status(403).json({
+                success: false,
+                message: "You can only view messages with your friends"
+            });
         }
 
+        // Get conversation
         const messages = await Message.find({
             $or: [
                 {
@@ -86,12 +144,19 @@ exports.getMessages = async (req, res) => {
         })
         .sort({ createdAt: 1 });
 
-        res.json(messages);
+        return res.status(200).json({
+            success: true,
+            messages
+        });
 
     } catch (error) {
 
-        console.log(error);
-        res.status(500).send("Server Error");
+        console.log("Get messages error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server Error"
+        });
 
     }
 

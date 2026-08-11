@@ -52,21 +52,34 @@ async function sendFriendRequest(receiverId) {
             }
         );
 
-        alert(response.data);
+        console.log("Friend request response:", response.data);
+
+        alert(
+            response.data?.message ||
+            "Friend request sent successfully"
+        );
 
     } catch (error) {
 
-        console.log(error);
+        console.log("Friend request error:", error.response?.data);
 
-        if (error.response) {
+        if (error.response?.data?.message) {
+
+            alert(error.response.data.message);
+
+        } else if (typeof error.response?.data === "string") {
+
             alert(error.response.data);
+
         } else {
-            alert("Something went wrong");
+
+            alert("Friend request failed");
+
         }
 
     }
 
-} 
+}
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-green-950 flex justify-center items-start pt-16 px-4">

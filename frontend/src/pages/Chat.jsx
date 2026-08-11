@@ -28,7 +28,7 @@ function Chat() {
                     }
                 });
 
-                setMessages(response.data);
+                setMessages(response.data.messages);
 
             } catch (error) {
 
@@ -78,6 +78,7 @@ function Chat() {
             ...prevMessages,
             message
         ]);
+
     });
 
     newSocket.on("message_error", (error) => {

@@ -22,7 +22,12 @@ function Friends() {
                     }
                 });
 
-                setFriends(response.data);
+                const data = response.data;
+                setFriends(
+                    Array.isArray(data)
+                        ? data
+                        : data.friends || []
+                );
 
             } catch (error) {
 
