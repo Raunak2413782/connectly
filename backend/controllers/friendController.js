@@ -291,27 +291,41 @@ exports.getFriends = async (req, res) => {
                 { user2: req.user.id }
             ]
         })
-        .populate("user1", "name email")
-        .populate("user2", "name email");
+        .populate(
+            "user1",
+            "name email isOnline lastSeen"
+        )
+        .populate(
+            "user2",
+            "name email isOnline lastSeen"
+        );
+
 
         const friendList = friends.map((friend) => {
 
             if (friend.user1._id.toString() === req.user.id) {
+
                 return friend.user2;
+
             }
 
             return friend.user1;
 
         });
 
+
         return res.status(200).json({
             success: true,
             friends: friendList
         });
 
+
     } catch (error) {
 
-        console.log("Get friends error:", error);
+        console.log(
+            "Get friends error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
