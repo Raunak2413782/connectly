@@ -17,6 +17,7 @@ function chatSocket(io) {
             socket.id
         );
 
+
         // =========================
         // USER ONLINE
         // =========================
@@ -27,8 +28,6 @@ function chatSocket(io) {
                 isOnline: true,
                 lastSeen: null
             });
-
-            // Notify friends that this user is online
 
             const friendships = await Friend.find({
                 $or: [
@@ -62,6 +61,44 @@ function chatSocket(io) {
             );
 
         }
+
+
+        // =========================
+        // TYPING START
+        // =========================
+
+        socket.on("typing_start", (data) => {
+
+            const { receiverId } = data;
+
+            if (!receiverId) {
+                return;
+            }
+
+            io.to(receiverId).emit("user_typing", {
+                userId: userId.toString()
+            });
+
+        });
+
+
+        // =========================
+        // TYPING STOP
+        // =========================
+
+        socket.on("typing_stop", (data) => {
+
+            const { receiverId } = data;
+
+            if (!receiverId) {
+                return;
+            }
+
+            io.to(receiverId).emit("user_stopped_typing", {
+                userId: userId.toString()
+            });
+
+        });
 
 
         // =========================
@@ -140,6 +177,12 @@ function chatSocket(io) {
                     .emit("receive_message", savedMessage);
 
 
+                // Stop typing after message is sent
+                io.to(receiverId).emit("user_stopped_typing", {
+                    userId: userId.toString()
+                });
+
+
             } catch (error) {
 
                 console.log(
@@ -172,63 +215,65 @@ function chatSocket(io) {
                 /*
                  * Check if user has another socket connected.
                  *
-                 * This is important because the same user can
-                 * have multiple tabs/devices open.
+                 * Important because same user can have
+                 * multiple tabs/devices open.
                  */
 
-                const userRoom = io.sockets.adapter.rooms.get(userId);
+                const userRoom =
+                    io.sockets.adapter.rooms.get(userId);
 
                 const remainingConnections = userRoom
                     ? userRoom.size
                     : 0;
 
+
                 // Only mark offline when ALL connections are gone
                 if (remainingConnections === 0) {
 
-                const lastSeen = new Date();
+                    const lastSeen = new Date();
 
-                await User.findByIdAndUpdate(userId, {
-                    isOnline: false,
-                    lastSeen: lastSeen
-                });
-
-                console.log(
-                    "🔴 User marked OFFLINE:",
-                    userId
-                );
-
-
-                // Notify friends that this user is offline
-
-                const friendships = await Friend.find({
-                    $or: [
-                        { user1: userId },
-                        { user2: userId }
-                    ]
-                });
-
-
-                friendships.forEach((friendship) => {
-
-                    const friendId =
-                        friendship.user1.toString() === userId.toString()
-                            ? friendship.user2.toString()
-                            : friendship.user1.toString();
-
-
-                    io.to(friendId).emit("user_status", {
-
-                        userId: userId.toString(),
-
+                    await User.findByIdAndUpdate(userId, {
                         isOnline: false,
-
                         lastSeen: lastSeen
+                    });
+
+                    console.log(
+                        "🔴 User marked OFFLINE:",
+                        userId
+                    );
+
+
+                    // Notify friends that user is offline
+
+                    const friendships = await Friend.find({
+                        $or: [
+                            { user1: userId },
+                            { user2: userId }
+                        ]
+                    });
+
+
+                    friendships.forEach((friendship) => {
+
+                        const friendId =
+                            friendship.user1.toString() === userId.toString()
+                                ? friendship.user2.toString()
+                                : friendship.user1.toString();
+
+
+                        io.to(friendId).emit("user_status", {
+
+                            userId: userId.toString(),
+
+                            isOnline: false,
+
+                            lastSeen: lastSeen
+
+                        });
 
                     });
 
-                });
-
-            }
+                }
 
             } catch (error) {
 

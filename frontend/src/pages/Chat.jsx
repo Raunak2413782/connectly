@@ -11,15 +11,21 @@ function Chat() {
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState("");
     const [loading, setLoading] = useState(true);
+
+    // Friend information
     const [friend, setFriend] = useState(null);
 
+    // Friend typing status
+    const [isTyping, setIsTyping] = useState(false);
+
     const messagesEndRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
 
     const token = localStorage.getItem("token");
 
 
     // =========================
-    // FETCH OLD MESSAGES
+    // FETCH MESSAGES
     // =========================
 
     useEffect(() => {
@@ -37,7 +43,7 @@ function Chat() {
                     }
                 );
 
-                setMessages(response.data.messages);
+                setMessages(response.data.messages || []);
 
             } catch (error) {
 
@@ -60,7 +66,7 @@ function Chat() {
 
 
     // =========================
-    // FETCH FRIEND INFORMATION
+    // FETCH FRIEND DETAILS
     // =========================
 
     useEffect(() => {
@@ -78,13 +84,9 @@ function Chat() {
                     }
                 );
 
-                const data = response.data;
+                const friends = response.data.friends || [];
 
-                const friendList = Array.isArray(data)
-                    ? data
-                    : data.friends || [];
-
-                const currentFriend = friendList.find(
+                const currentFriend = friends.find(
                     (user) => user._id === friendId
                 );
 
@@ -116,119 +118,7 @@ function Chat() {
             behavior: "smooth"
         });
 
-    }, [messages]);
-
-
-    // =========================
-    // SOCKET EVENTS
-    // =========================
-
-    useEffect(() => {
-
-        if (!socket?.current) {
-            return;
-        }
-
-
-        // RECEIVE MESSAGE
-
-        const handleReceiveMessage = (message) => {
-
-            console.log(
-                "📩 New message:",
-                message
-            );
-
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                message
-            ]);
-
-        };
-
-
-        // MESSAGE ERROR
-
-        const handleMessageError = (error) => {
-
-            console.log(
-                "❌ Message error:",
-                error.message
-            );
-
-        };
-
-
-        // USER ONLINE / OFFLINE
-
-        const handleUserStatus = (data) => {
-
-            console.log(
-                "👤 Friend status changed:",
-                data
-            );
-
-            if (data.userId === friendId) {
-
-                setFriend((prevFriend) => {
-
-                    if (!prevFriend) {
-                        return prevFriend;
-                    }
-
-                    return {
-                        ...prevFriend,
-                        isOnline: data.isOnline,
-                        lastSeen: data.lastSeen
-                    };
-
-                });
-
-            }
-
-        };
-
-
-        // LISTENERS
-
-        socket.current.on(
-            "receive_message",
-            handleReceiveMessage
-        );
-
-        socket.current.on(
-            "message_error",
-            handleMessageError
-        );
-
-        socket.current.on(
-            "user_status",
-            handleUserStatus
-        );
-
-
-        // CLEANUP
-
-        return () => {
-
-            socket.current?.off(
-                "receive_message",
-                handleReceiveMessage
-            );
-
-            socket.current?.off(
-                "message_error",
-                handleMessageError
-            );
-
-            socket.current?.off(
-                "user_status",
-                handleUserStatus
-            );
-
-        };
-
-    }, [socket, friendId]);
+    }, [messages, isTyping]);
 
 
     // =========================
@@ -242,22 +132,17 @@ function Chat() {
         }
 
         const date = new Date(lastSeen);
-
         const now = new Date();
 
         const diff = Math.floor(
             (now - date) / 1000
         );
 
-
         if (diff < 60) {
             return "Last seen just now";
         }
 
-
-        const minutes = Math.floor(
-            diff / 60
-        );
+        const minutes = Math.floor(diff / 60);
 
         if (minutes < 60) {
 
@@ -269,10 +154,7 @@ function Chat() {
 
         }
 
-
-        const hours = Math.floor(
-            minutes / 60
-        );
+        const hours = Math.floor(minutes / 60);
 
         if (hours < 24) {
 
@@ -284,16 +166,313 @@ function Chat() {
 
         }
 
-
-        const days = Math.floor(
-            hours / 24
-        );
+        const days = Math.floor(hours / 24);
 
         return `Last seen ${days} ${
             days === 1
                 ? "day"
                 : "days"
         } ago`;
+
+    }
+
+
+    // =========================
+    // SOCKET LISTENERS
+    // =========================
+
+    useEffect(() => {
+
+        if (!socket?.current) {
+            return;
+        }
+
+
+        // =========================
+        // RECEIVE MESSAGE
+        // =========================
+
+        const handleReceiveMessage = (message) => {
+
+            console.log(
+                "📩 New message:",
+                message
+            );
+
+            // Only add messages belonging to this chat
+            const isThisChat =
+                (
+                    message.sender === friendId &&
+                    message.receiver === localStorage.getItem("userId")
+                ) ||
+                (
+                    message.sender === localStorage.getItem("userId") &&
+                    message.receiver === friendId
+                );
+
+            if (!isThisChat) {
+                return;
+            }
+
+            setMessages((prevMessages) => {
+
+                // Prevent duplicate message
+                const alreadyExists = prevMessages.some(
+                    (msg) => msg._id === message._id
+                );
+
+                if (alreadyExists) {
+                    return prevMessages;
+                }
+
+                return [
+                    ...prevMessages,
+                    message
+                ];
+
+            });
+
+        };
+
+
+        // =========================
+        // FRIEND STARTED TYPING
+        // =========================
+
+        const handleUserTyping = (data) => {
+
+            if (data.userId === friendId) {
+
+                console.log(
+                    "⌨️ Friend is typing..."
+                );
+
+                setIsTyping(true);
+
+            }
+
+        };
+
+
+        // =========================
+        // FRIEND STOPPED TYPING
+        // =========================
+
+        const handleUserStoppedTyping = (data) => {
+
+            if (data.userId === friendId) {
+
+                console.log(
+                    "⏹️ Friend stopped typing"
+                );
+
+                setIsTyping(false);
+
+            }
+
+        };
+
+
+        // =========================
+        // USER ONLINE / OFFLINE
+        // =========================
+
+        const handleUserStatus = (data) => {
+
+            if (data.userId !== friendId) {
+                return;
+            }
+
+            console.log(
+                "👤 Friend status changed:",
+                data
+            );
+
+            setFriend((prevFriend) => {
+
+                if (!prevFriend) {
+                    return prevFriend;
+                }
+
+                return {
+                    ...prevFriend,
+                    isOnline: data.isOnline,
+                    lastSeen: data.lastSeen
+                };
+
+            });
+
+        };
+
+
+        // =========================
+        // MESSAGE ERROR
+        // =========================
+
+        const handleMessageError = (error) => {
+
+            console.log(
+                "❌ Message error:",
+                error.message
+            );
+
+        };
+
+
+        // Register listeners
+
+        socket.current.on(
+            "receive_message",
+            handleReceiveMessage
+        );
+
+        socket.current.on(
+            "user_typing",
+            handleUserTyping
+        );
+
+        socket.current.on(
+            "user_stopped_typing",
+            handleUserStoppedTyping
+        );
+
+        socket.current.on(
+            "user_status",
+            handleUserStatus
+        );
+
+        socket.current.on(
+            "message_error",
+            handleMessageError
+        );
+
+
+        // =========================
+        // CLEANUP
+        // =========================
+
+        return () => {
+
+            socket.current?.off(
+                "receive_message",
+                handleReceiveMessage
+            );
+
+            socket.current?.off(
+                "user_typing",
+                handleUserTyping
+            );
+
+            socket.current?.off(
+                "user_stopped_typing",
+                handleUserStoppedTyping
+            );
+
+            socket.current?.off(
+                "user_status",
+                handleUserStatus
+            );
+
+            socket.current?.off(
+                "message_error",
+                handleMessageError
+            );
+
+        };
+
+    }, [socket, friendId]);
+
+
+    // =========================
+    // TYPING HANDLER
+    // =========================
+
+    function handleTyping(e) {
+
+        const value = e.target.value;
+
+        setText(value);
+
+
+        if (
+            !socket?.current ||
+            !socket.current.connected
+        ) {
+
+            return;
+
+        }
+
+
+        // =========================
+        // EMPTY INPUT
+        // =========================
+
+        if (value.trim() === "") {
+
+            socket.current.emit(
+                "typing_stop",
+                {
+                    receiverId: friendId
+                }
+            );
+
+            if (typingTimeoutRef.current) {
+
+                clearTimeout(
+                    typingTimeoutRef.current
+                );
+
+                typingTimeoutRef.current = null;
+
+            }
+
+            return;
+
+        }
+
+
+        // =========================
+        // START TYPING
+        // =========================
+
+        if (!typingTimeoutRef.current) {
+
+            socket.current.emit(
+                "typing_start",
+                {
+                    receiverId: friendId
+                }
+            );
+
+        }
+
+
+        // Clear old timeout
+
+        if (typingTimeoutRef.current) {
+
+            clearTimeout(
+                typingTimeoutRef.current
+            );
+
+        }
+
+
+        // Stop typing after 800ms
+
+        typingTimeoutRef.current = setTimeout(() => {
+
+            socket.current?.emit(
+                "typing_stop",
+                {
+                    receiverId: friendId
+                }
+            );
+
+            typingTimeoutRef.current = null;
+
+        }, 800);
 
     }
 
@@ -308,6 +487,7 @@ function Chat() {
             return;
         }
 
+
         if (
             !socket?.current ||
             !socket.current.connected
@@ -318,8 +498,11 @@ function Chat() {
             );
 
             return;
+
         }
 
+
+        // Send message
 
         socket.current.emit(
             "send_message",
@@ -329,9 +512,56 @@ function Chat() {
             }
         );
 
+
+        // Stop typing
+
+        socket.current.emit(
+            "typing_stop",
+            {
+                receiverId: friendId
+            }
+        );
+
+
+        // Clear timeout
+
+        if (typingTimeoutRef.current) {
+
+            clearTimeout(
+                typingTimeoutRef.current
+            );
+
+            typingTimeoutRef.current = null;
+
+        }
+
+
+        // Clear input
+
         setText("");
 
     }
+
+
+    // =========================
+    // CLEANUP TYPING TIMEOUT
+    // =========================
+
+    useEffect(() => {
+
+        return () => {
+
+            if (typingTimeoutRef.current) {
+
+                clearTimeout(
+                    typingTimeoutRef.current
+                );
+
+            }
+
+        };
+
+    }, []);
 
 
     // =========================
@@ -345,43 +575,83 @@ function Chat() {
             <div className="w-full max-w-2xl h-[80vh] bg-slate-800/90 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700 flex flex-col">
 
 
-                {/* HEADER */}
+                {/* =========================
+                    HEADER
+                ========================= */}
 
                 <div className="p-5 border-b border-slate-700">
 
-                    <h1 className="text-2xl font-bold text-green-400">
-
-                        {friend?.name || "Chat"}
-
-                    </h1>
+                    <div className="flex items-center gap-3">
 
 
-                    {friend?.isOnline ? (
+                        {/* PROFILE CIRCLE */}
 
-                        <p className="text-green-400 text-sm">
+                        <div className="w-11 h-11 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-lg">
 
-                            🟢 Online
+                            {friend?.name
+                                ?.charAt(0)
+                                .toUpperCase() || "?"}
 
-                        </p>
+                        </div>
 
-                    ) : (
 
-                        <p className="text-gray-400 text-sm">
+                        {/* NAME + STATUS */}
 
-                            ⚫ {formatLastSeen(
-                                friend?.lastSeen
+                        <div>
+
+                            <h1 className="text-lg font-bold text-white">
+
+                                {friend?.name || "Loading..."}
+
+                            </h1>
+
+
+                            {/* TYPING */}
+
+                            {isTyping ? (
+
+                                <p className="text-green-400 text-sm">
+
+                                    typing...
+
+                                </p>
+
+
+                            ) : friend?.isOnline ? (
+
+                                <p className="text-green-400 text-sm">
+
+                                    🟢 Online
+
+                                </p>
+
+
+                            ) : (
+
+                                <p className="text-gray-500 text-sm">
+
+                                    ⚫{" "}
+                                    {formatLastSeen(
+                                        friend?.lastSeen
+                                    )}
+
+                                </p>
+
                             )}
 
-                        </p>
+                        </div>
 
-                    )}
+                    </div>
 
                 </div>
 
 
-                {/* MESSAGES */}
+                {/* =========================
+                    MESSAGES
+                ========================= */}
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-3">
+
 
                     {loading ? (
 
@@ -391,6 +661,7 @@ function Chat() {
 
                         </p>
 
+
                     ) : messages.length === 0 ? (
 
                         <p className="text-center text-gray-400">
@@ -399,6 +670,7 @@ function Chat() {
                             Start the conversation!
 
                         </p>
+
 
                     ) : (
 
@@ -426,12 +698,15 @@ function Chat() {
 
                     )}
 
+
                     <div ref={messagesEndRef} />
 
                 </div>
 
 
-                {/* INPUT */}
+                {/* =========================
+                    INPUT
+                ========================= */}
 
                 <div className="p-4 border-t border-slate-700 flex gap-3">
 
@@ -439,13 +714,15 @@ function Chat() {
                         type="text"
                         placeholder="Type a message..."
                         value={text}
-                        onChange={(e) =>
-                            setText(e.target.value)
-                        }
+                        onChange={handleTyping}
                         onKeyDown={(e) => {
 
                             if (e.key === "Enter") {
+
+                                e.preventDefault();
+
                                 sendMessage();
+
                             }
 
                         }}
