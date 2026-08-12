@@ -18,6 +18,30 @@ const messageSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true
+        },
+
+        isDeleted: {
+            type: Boolean,
+            default: false
+        },
+
+        deletedAt: {
+            type: Date,
+            default: null
+        },
+
+        // =========================
+        // READ RECEIPT
+        // =========================
+
+        isRead: {
+            type: Boolean,
+            default: false
+        },
+
+        readAt: {
+            type: Date,
+            default: null
         }
     },
     {

@@ -198,6 +198,168 @@ function chatSocket(io) {
 
         });
 
+        // =========================
+        // DELETE MESSAGE
+        // =========================
+
+        socket.on("delete_message", async (data) => {
+
+            try {
+
+                const { messageId } = data;
+
+                // Message ID check
+                if (!messageId) {
+                    return;
+                }
+
+                // Find message
+                const message = await Message.findById(messageId);
+
+                if (!message) {
+
+                    socket.emit("message_error", {
+                        message: "Message not found"
+                    });
+
+                    return;
+                }
+
+
+                // =========================
+                // ONLY SENDER CAN DELETE
+                // =========================
+
+                if (
+                    message.sender.toString() !==
+                    socket.userId.toString()
+                ) {
+
+                    socket.emit("message_error", {
+                        message: "You can only delete your own messages"
+                    });
+
+                    return;
+                }
+
+
+                // =========================
+                // ALREADY DELETED
+                // =========================
+
+                if (message.isDeleted) {
+                    return;
+                }
+
+
+                // =========================
+                // MARK MESSAGE AS DELETED
+                // =========================
+
+                message.isDeleted = true;
+                message.deletedAt = new Date();
+
+                await message.save();
+
+
+                // =========================
+                // SEND UPDATE TO BOTH USERS
+                // =========================
+
+                io.to(message.sender.toString())
+                    .to(message.receiver.toString())
+                    .emit("message_deleted", {
+                        messageId: message._id.toString()
+                    });
+
+
+                console.log(
+                    "🗑️ Message deleted:",
+                    message._id.toString()
+                );
+
+            } catch (error) {
+
+                console.log(
+                    "❌ Delete message error:",
+                    error
+                );
+
+                socket.emit("message_error", {
+                    message: "Message could not be deleted"
+                });
+
+            }
+
+        });
+
+        // =========================
+        // MARK MESSAGES AS READ
+        // =========================
+
+        socket.on("mark_messages_read", async (data) => {
+
+            try {
+
+                const { senderId } = data;
+
+                if (!senderId) {
+                    return;
+                }
+
+                // Find unread messages sent by the friend
+                const unreadMessages = await Message.find({
+                    sender: senderId,
+                    receiver: socket.userId,
+                    isRead: false
+                }).select("_id");
+
+                if (unreadMessages.length === 0) {
+                    return;
+                }
+
+                const messageIds = unreadMessages.map(
+                    (message) => message._id
+                );
+
+                // Mark messages as read
+                await Message.updateMany(
+                    {
+                        _id: { $in: messageIds }
+                    },
+                    {
+                        $set: {
+                            isRead: true,
+                            readAt: new Date()
+                        }
+                    }
+                );
+
+                // Notify sender in real-time
+                io.to(senderId).emit("messages_read", {
+                    readerId: socket.userId.toString(),
+                    senderId: senderId.toString(),
+                    messageIds: messageIds.map(
+                        (id) => id.toString()
+                    )
+                });
+
+                console.log(
+                    "✓✓ Messages marked as read:",
+                    socket.userId
+                );
+
+            } catch (error) {
+
+                console.log(
+                    "❌ Mark messages read socket error:",
+                    error
+                );
+
+            }
+
+        });
+
 
         // =========================
         // DISCONNECT

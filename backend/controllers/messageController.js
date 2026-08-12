@@ -2,7 +2,6 @@ const Message = require("../models/Message");
 const Friend = require("../models/Friend");
 const User = require("../models/User");
 
-
 // =========================
 // SEND MESSAGE
 // =========================
@@ -49,6 +48,14 @@ exports.sendMessage = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message: "You can only message your friends"
+            });
+        }
+
+        // Check text
+        if (!text || text.trim() === "") {
+            return res.status(400).json({
+                success: false,
+                message: "Message text is required"
             });
         }
 
@@ -152,6 +159,122 @@ exports.getMessages = async (req, res) => {
     } catch (error) {
 
         console.log("Get messages error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server Error"
+        });
+
+    }
+
+};
+
+
+// =========================
+// MARK MESSAGES AS READ
+// =========================
+
+exports.markMessagesRead = async (req, res) => {
+
+    try {
+
+        const { userId } = req.params;
+
+        // Check user exists
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Cannot mark own messages as read
+        if (userId === req.user.id) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid conversation"
+            });
+        }
+
+        // Check friendship
+        const friendship = await Friend.findOne({
+            $or: [
+                {
+                    user1: req.user.id,
+                    user2: userId
+                },
+                {
+                    user1: userId,
+                    user2: req.user.id
+                }
+            ]
+        });
+
+        if (!friendship) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only read messages from your friends"
+            });
+        }
+
+        // Mark only messages received from this friend as read
+        const result = await Message.updateMany(
+            {
+                sender: userId,
+                receiver: req.user.id,
+                isRead: false
+            },
+            {
+                $set: {
+                    isRead: true,
+                    readAt: new Date()
+                }
+            }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Messages marked as read",
+            modifiedCount: result.modifiedCount
+        });
+
+    } catch (error) {
+
+        console.log("Mark messages read error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server Error"
+        });
+
+    }
+
+};
+
+
+// =========================
+// GET UNREAD MESSAGE COUNT
+// =========================
+
+exports.getUnreadCount = async (req, res) => {
+
+    try {
+
+        const count = await Message.countDocuments({
+            receiver: req.user.id,
+            isRead: false
+        });
+
+        return res.status(200).json({
+            success: true,
+            unreadCount: count
+        });
+
+    } catch (error) {
+
+        console.log("Get unread count error:", error);
 
         return res.status(500).json({
             success: false,

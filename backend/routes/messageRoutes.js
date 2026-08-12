@@ -8,9 +8,10 @@ const validate = require("../middleware/validate");
 
 const {
     sendMessage,
-    getMessages
+    getMessages,
+    markMessagesRead,
+    getUnreadCount
 } = require("../controllers/messageController");
-
 
 // =========================
 // SEND MESSAGE
@@ -39,6 +40,38 @@ router.post(
     validate,
 
     sendMessage
+);
+
+// =========================
+// GET UNREAD MESSAGE COUNT
+// =========================
+
+router.get(
+    "/messages/unread-count",
+
+    auth,
+
+    getUnreadCount
+);
+
+// =========================
+// MARK MESSAGES AS READ
+// =========================
+
+router.patch(
+    "/messages/read/:userId",
+
+    auth,
+
+    [
+        param("userId")
+            .isMongoId()
+            .withMessage("Invalid user ID")
+    ],
+
+    validate,
+
+    markMessagesRead
 );
 
 
