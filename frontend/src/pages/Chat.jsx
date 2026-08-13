@@ -649,6 +649,19 @@ function Chat() {
 
     }
 
+    function formatMessageTime(date) {
+
+        if (!date) {
+            return "";
+        }
+
+        return new Date(date).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+
+    }
+
 
     // =========================
     // SEND MESSAGE
@@ -906,8 +919,22 @@ function Chat() {
                                         ) : (
 
                                             <>
-                                                <div>
-                                                    {message.text}
+                                                <div className="bg-green-500 text-white px-4 py-2 rounded-xl max-w-[70%]">
+
+                                                    <div className="flex items-end gap-2">
+
+                                                        <span>
+                                                            {message.isDeleted
+                                                                ? "This message was deleted"
+                                                                : message.text}
+                                                        </span>
+
+                                                        <span className="text-[10px] text-green-100 whitespace-nowrap">
+                                                            {formatMessageTime(message.createdAt)}
+                                                        </span>
+
+                                                    </div>
+
                                                 </div>
 
                                                 {isMine && (
