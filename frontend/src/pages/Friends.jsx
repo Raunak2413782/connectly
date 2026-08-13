@@ -106,6 +106,137 @@ useEffect(() => {
 
 }, [socket]);
 
+// =========================
+// REAL-TIME LAST MESSAGE + UNREAD COUNT
+// =========================
+
+useEffect(() => {
+
+    if (!socket?.current) {
+        return;
+    }
+
+    const currentUserId = localStorage.getItem("userId");
+
+
+    const handleReceiveMessage = (message) => {
+
+        console.log("📩 Friend page received message:", message);
+
+
+        // Only process messages received by current user
+        if (
+            message.receiver?.toString() !==
+            currentUserId?.toString()
+        ) {
+            return;
+        }
+
+
+        setFriends((prevFriends) => {
+
+            return prevFriends.map((friend) => {
+
+                // Message is from this friend
+                if (
+                    friend._id.toString() ===
+                    message.sender?.toString()
+                ) {
+
+                    return {
+
+                        ...friend,
+
+                        // Update last message immediately
+                        lastMessage: {
+
+                            text: message.isDeleted
+                                ? "This message was deleted"
+                                : message.text,
+
+                            createdAt: message.createdAt,
+
+                            sender: message.sender,
+
+                            isDeleted:
+                                message.isDeleted || false
+
+                        },
+
+                        // Increase unread count
+                        unreadCount:
+                            (friend.unreadCount || 0) + 1
+
+                    };
+
+                }
+
+                return friend;
+
+            });
+
+        });
+
+    };
+
+    const handleMessagesRead = (data) => {
+
+        console.log("✓✓ Messages read:", data);
+
+        const readerId = data.readerId;
+
+        setFriends((prevFriends) => {
+
+            return prevFriends.map((friend) => {
+
+                if (
+                    friend._id.toString() ===
+                    readerId?.toString()
+                ) {
+
+                    return {
+                        ...friend,
+                        unreadCount: 0
+                    };
+
+                }
+
+                return friend;
+
+            });
+
+        });
+
+    };
+
+
+    socket.current.on(
+        "receive_message",
+        handleReceiveMessage
+    );
+
+    socket.current.on(
+        "messages_read",
+        handleMessagesRead
+    );
+
+
+    return () => {
+
+        socket.current?.off(
+            "receive_message",
+            handleReceiveMessage
+        );
+
+        socket.current?.off(
+            "messages_read",
+            handleMessagesRead
+        );
+
+    };
+
+}, [socket]);
+
 
     // =========================
     // LAST SEEN FORMAT
@@ -195,7 +326,7 @@ useEffect(() => {
 
                             <div
                                 key={friend._id}
-                                className="bg-slate-700 rounded-xl p-5 flex justify-between items-center"
+                                className="bg-slate-700 rounded-xl p-5 flex justify-between items-center gap-4"
                             >
 
 
@@ -215,17 +346,35 @@ useEffect(() => {
                                     </div>
 
 
-                                    {/* NAME + EMAIL + STATUS */}
+                                    {/* NAME + LAST MESSAGE + STATUS */}
 
-                                    <div>
+                                    <div className="min-w-0">
 
-                                        <h2 className="text-white font-semibold text-lg">
-                                            {friend.name}
-                                        </h2>
+                                        <div className="flex items-center gap-2">
+
+                                            <h2 className="text-white font-semibold text-lg">
+                                                {friend.name}
+                                            </h2>
+
+                                            {friend.unreadCount > 0 && (
+                                                <span className="bg-green-500 text-white text-xs font-bold min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center">
+                                                    {friend.unreadCount > 99
+                                                        ? "99+"
+                                                        : friend.unreadCount}
+                                                </span>
+                                            )}
+
+                                        </div>
 
 
-                                        <p className="text-gray-400">
-                                            {friend.email}
+                                        {/* LAST MESSAGE */}
+
+                                        <p className="text-gray-400 text-sm truncate max-w-[280px]">
+
+                                            {friend.lastMessage
+                                                ? friend.lastMessage.text
+                                                : "No messages yet"}
+
                                         </p>
 
 

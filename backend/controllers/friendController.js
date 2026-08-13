@@ -1,6 +1,7 @@
 const FriendRequest = require("../models/FriendRequest");
 const Friend = require("../models/Friend");
 const User = require("../models/User");
+const Message = require("../models/Message");
 
 
 // =========================
@@ -301,22 +302,102 @@ exports.getFriends = async (req, res) => {
         );
 
 
-        const friendList = friends.map((friend) => {
+        const friendList = await Promise.all(
 
-            if (friend.user1._id.toString() === req.user.id) {
+            friends.map(async (friend) => {
 
-                return friend.user2;
+                const friendUser =
+                    friend.user1._id.toString() === req.user.id
+                        ? friend.user2
+                        : friend.user1;
 
-            }
 
-            return friend.user1;
+                // =========================
+                // GET LAST MESSAGE
+                // =========================
 
-        });
+                const lastMessage = await Message.findOne({
+
+                    $or: [
+
+                        {
+                            sender: req.user.id,
+                            receiver: friendUser._id
+                        },
+
+                        {
+                            sender: friendUser._id,
+                            receiver: req.user.id
+                        }
+
+                    ]
+
+                })
+                .sort({ createdAt: -1 })
+                .select("text createdAt sender isRead isDeleted");
+
+
+                // =========================
+                // GET UNREAD COUNT
+                // =========================
+
+                const unreadCount = await Message.countDocuments({
+
+                    sender: friendUser._id,
+
+                    receiver: req.user.id,
+
+                    isRead: false,
+
+                    isDeleted: false
+
+                });
+
+
+                return {
+
+                    _id: friendUser._id,
+
+                    name: friendUser.name,
+
+                    email: friendUser.email,
+
+                    isOnline: friendUser.isOnline,
+
+                    lastSeen: friendUser.lastSeen,
+
+                    lastMessage: lastMessage
+                        ? {
+                            text: lastMessage.isDeleted
+                                ? "This message was deleted"
+                                : lastMessage.text,
+
+                            createdAt:
+                                lastMessage.createdAt,
+
+                            sender:
+                                lastMessage.sender,
+
+                            isDeleted:
+                                lastMessage.isDeleted
+                        }
+                        : null,
+
+                    unreadCount: unreadCount
+
+                };
+
+            })
+
+        );
 
 
         return res.status(200).json({
+
             success: true,
+
             friends: friendList
+
         });
 
 
@@ -328,8 +409,11 @@ exports.getFriends = async (req, res) => {
         );
 
         return res.status(500).json({
+
             success: false,
+
             message: "Server Error"
+
         });
 
     }
