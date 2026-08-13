@@ -32,11 +32,25 @@ function Friends() {
 
                 const data = response.data;
 
-                setFriends(
-                    Array.isArray(data)
-                        ? data
-                        : data.friends || []
-                );
+                const friendList = Array.isArray(data)
+                    ? data
+                    : data.friends || [];
+
+                const sortedFriends = [...friendList].sort((a, b) => {
+
+                    const dateA = a.lastMessage?.createdAt
+                        ? new Date(a.lastMessage.createdAt).getTime()
+                        : 0;
+
+                    const dateB = b.lastMessage?.createdAt
+                        ? new Date(b.lastMessage.createdAt).getTime()
+                        : 0;
+
+                    return dateB - dateA;
+
+                });
+
+                setFriends(sortedFriends);
 
             } catch (error) {
 
@@ -135,21 +149,17 @@ useEffect(() => {
 
         setFriends((prevFriends) => {
 
-            return prevFriends.map((friend) => {
+            const updatedFriends = prevFriends.map((friend) => {
 
-                // Message is from this friend
                 if (
                     friend._id.toString() ===
                     message.sender?.toString()
                 ) {
 
                     return {
-
                         ...friend,
 
-                        // Update last message immediately
                         lastMessage: {
-
                             text: message.isDeleted
                                 ? "This message was deleted"
                                 : message.text,
@@ -160,20 +170,45 @@ useEffect(() => {
 
                             isDeleted:
                                 message.isDeleted || false
-
                         },
 
-                        // Increase unread count
                         unreadCount:
                             (friend.unreadCount || 0) + 1
-
                     };
-
                 }
 
                 return friend;
 
             });
+
+
+            // Move the friend with the new message to TOP
+            const friendIndex = updatedFriends.findIndex(
+                (friend) =>
+                    friend._id.toString() ===
+                    message.sender?.toString()
+            );
+
+
+            if (friendIndex === -1) {
+                return updatedFriends;
+            }
+
+
+            const updatedFriend =
+                updatedFriends[friendIndex];
+
+
+            const remainingFriends =
+                updatedFriends.filter(
+                    (_, index) => index !== friendIndex
+                );
+
+
+            return [
+                updatedFriend,
+                ...remainingFriends
+            ];
 
         });
 
