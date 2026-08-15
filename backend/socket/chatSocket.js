@@ -29,6 +29,66 @@ function chatSocket(io) {
                 lastSeen: null
             });
 
+            // =========================
+            // MARK OFFLINE MESSAGES AS DELIVERED
+            // =========================
+
+            try {
+
+                const pendingMessages = await Message.find({
+                    receiver: userId,
+                    isDelivered: false,
+                    isDeleted: false
+                });
+
+                if (pendingMessages.length > 0) {
+
+                    const messageIds = pendingMessages.map(
+                        (message) => message._id
+                    );
+
+                    // Mark messages as delivered
+                    await Message.updateMany(
+                        {
+                            _id: { $in: messageIds }
+                        },
+                        {
+                            $set: {
+                                isDelivered: true,
+                                deliveredAt: new Date()
+                            }
+                        }
+                    );
+
+                    // Notify senders in real-time
+                    pendingMessages.forEach((message) => {
+
+                        io.to(message.sender.toString()).emit(
+                            "message_delivered",
+                            {
+                                messageId: message._id,
+                                deliveredAt: new Date()
+                            }
+                        );
+
+                    });
+
+                    console.log(
+                        "✓✓ Pending messages marked as delivered:",
+                        pendingMessages.length
+                    );
+
+                }
+
+            } catch (error) {
+
+                console.log(
+                    "❌ Pending delivery update error:",
+                    error
+                );
+
+            }
+
             const friendships = await Friend.find({
                 $or: [
                     { user1: userId },
@@ -175,6 +235,32 @@ function chatSocket(io) {
                 io.to(socket.userId)
                     .to(receiverId)
                     .emit("receive_message", savedMessage);
+
+
+                // =========================
+                // MARK AS DELIVERED
+                // =========================
+
+                // Check whether receiver is currently connected
+                const receiverRoom = io.sockets.adapter.rooms.get(receiverId);
+
+                if (receiverRoom && receiverRoom.size > 0) {
+
+                    await Message.findByIdAndUpdate(
+                        savedMessage._id,
+                        {
+                            isDelivered: true,
+                            deliveredAt: new Date()
+                        }
+                    );
+
+                    // Tell sender that message was delivered
+                    io.to(socket.userId).emit("message_delivered", {
+                        messageId: savedMessage._id,
+                        deliveredAt: new Date()
+                    });
+
+                }
 
 
                 // Stop typing after message is sent

@@ -265,6 +265,39 @@ function Chat() {
 
         };
 
+        // =========================
+        // MESSAGE DELIVERED
+        // =========================
+
+        const handleMessageDelivered = (data) => {
+
+            console.log("✓✓ Message delivered:", data);
+
+            setMessages((prevMessages) => {
+
+                return prevMessages.map((message) => {
+
+                    if (
+                        message._id.toString() ===
+                        data.messageId.toString()
+                    ) {
+
+                        return {
+                            ...message,
+                            isDelivered: true,
+                            deliveredAt: data.deliveredAt
+                        };
+
+                    }
+
+                    return message;
+
+                });
+
+            });
+
+        };
+
 
         // =========================
         // FRIEND STARTED TYPING
@@ -433,6 +466,11 @@ function Chat() {
         );
 
         socket.current.on(
+            "message_delivered",
+            handleMessageDelivered
+        );
+
+        socket.current.on(
             "user_typing",
             handleUserTyping
         );
@@ -472,6 +510,11 @@ function Chat() {
             socket.current?.off(
                 "receive_message",
                 handleReceiveMessage
+            );
+
+            socket.current?.off(
+                "message_delivered",
+                handleMessageDelivered
             );
 
             socket.current?.off(
@@ -887,9 +930,7 @@ function Chat() {
                         messages.map((message) => {
 
                             const isMine =
-                                message.sender ===
-                                currentUserId;
-
+                                message.sender === currentUserId;
 
                             return (
 
@@ -910,6 +951,8 @@ function Chat() {
                                         }`}
                                     >
 
+                                        {/* MESSAGE CONTENT */}
+
                                         {message.isDeleted ? (
 
                                             <div>
@@ -918,34 +961,40 @@ function Chat() {
 
                                         ) : (
 
-                                            <>
-                                                <div className="bg-green-500 text-white px-4 py-2 rounded-xl max-w-[70%]">
+                                            <div>
 
-                                                    <div className="flex items-end gap-2">
+                                                {/* TEXT + TIME */}
 
-                                                        <span>
-                                                            {message.isDeleted
-                                                                ? "This message was deleted"
-                                                                : message.text}
-                                                        </span>
+                                                <div className="flex items-end gap-2">
 
-                                                        <span className="text-[10px] text-green-100 whitespace-nowrap">
-                                                            {formatMessageTime(message.createdAt)}
-                                                        </span>
+                                                    <span>
+                                                        {message.text}
+                                                    </span>
 
-                                                    </div>
+                                                    <span className="text-[10px] text-green-100 whitespace-nowrap">
+                                                        {formatMessageTime(
+                                                            message.createdAt
+                                                        )}
+                                                    </span>
 
                                                 </div>
+
+
+                                                {/* =========================
+                                                    MESSAGE ACTIONS
+                                                ========================= */}
 
                                                 {isMine && (
 
                                                     <div className="flex justify-end items-center gap-2 mt-1">
 
-                                                        {/* DELETE BUTTON */}
+                                                        {/* DELETE */}
 
                                                         <button
                                                             onClick={() =>
-                                                                deleteMessage(message._id)
+                                                                deleteMessage(
+                                                                    message._id
+                                                                )
                                                             }
                                                             className="text-xs text-white/70 hover:text-white"
                                                         >
@@ -953,16 +1002,27 @@ function Chat() {
                                                         </button>
 
 
-                                                        {/* READ RECEIPT */}
+                                                        {/* =========================
+                                                            MESSAGE STATUS
+                                                        ========================= */}
 
                                                         {message.isRead ? (
 
-                                                            <span className="text-blue-200 text-xs">
+                                                            // ✓✓ READ
+                                                            <span className="text-blue-400 text-xs font-semibold">
+                                                                ✓✓
+                                                            </span>
+
+                                                        ) : message.isDelivered ? (
+
+                                                            // ✓✓ DELIVERED
+                                                            <span className="text-white text-xs">
                                                                 ✓✓
                                                             </span>
 
                                                         ) : (
 
+                                                            // ✓ SENT
                                                             <span className="text-white text-xs">
                                                                 ✓
                                                             </span>
@@ -973,7 +1033,7 @@ function Chat() {
 
                                                 )}
 
-                                            </>
+                                            </div>
 
                                         )}
 

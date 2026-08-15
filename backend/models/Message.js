@@ -41,6 +41,19 @@ const messageSchema = new mongoose.Schema(
 
         readAt: {
             type: Date,
+        },
+
+        // =========================
+        // DELIVERY RECEIPT
+        // =========================
+
+        isDelivered: {
+            type: Boolean,
+            default: false
+        },
+
+        deliveredAt: {
+            type: Date,
             default: null
         }
     },
