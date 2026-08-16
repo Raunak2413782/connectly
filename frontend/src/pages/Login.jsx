@@ -38,9 +38,18 @@ function Login(){
         console.log(error);
 
         if (error.response) {
-            alert(error.response.data);
+
+            console.log("Login error:", error.response.data);
+
+            alert(
+                error.response.data.message ||
+                "Login Failed"
+            );
+
         } else {
+
             alert("Login Failed");
+
         }
 
     }

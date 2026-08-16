@@ -84,6 +84,28 @@ exports.sendFriendRequest = async (req, res) => {
 
         await friendRequest.save();
 
+
+        // =========================
+        // REAL-TIME FRIEND REQUEST
+        // =========================
+
+        const io = req.app.get("io");
+
+        if (io) {
+
+            io.to(receiverId).emit("new_friend_request", {
+
+                requestId: friendRequest._id,
+
+                senderId: req.user.id,
+
+                senderName: req.user.name || "Someone"
+
+            });
+
+        }
+
+
         return res.status(201).json({
             success: true,
             message: "Friend request sent"

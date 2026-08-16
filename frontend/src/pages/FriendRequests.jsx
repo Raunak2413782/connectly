@@ -1,15 +1,86 @@
 import { useEffect, useState } from "react";
 import API from "../api/axios";
+import { useSocket } from "../context/SocketContext";
 
 function FriendRequests() {
 
     const [requests, setRequests] = useState([]);
+
+    const socket = useSocket();
 
     useEffect(() => {
 
         fetchRequests();
 
     }, []);
+
+    // =========================
+    // REAL-TIME FRIEND REQUEST
+    // =========================
+
+    useEffect(() => {
+
+        if (!socket?.current) {
+            return;
+        }
+
+        const handleNewFriendRequest = (data) => {
+
+            console.log(
+                "🔔 New friend request:",
+                data
+            );
+
+            // Refresh requests from server
+            fetchRequests();
+
+        };
+
+
+        const registerFriendRequestListener = () => {
+
+            console.log(
+                "🟢 Registering friend request listener"
+            );
+
+            socket.current?.on(
+                "new_friend_request",
+                handleNewFriendRequest
+            );
+
+        };
+
+
+        // Socket already connected
+        if (socket.current.connected) {
+
+            registerFriendRequestListener();
+
+        }
+
+
+        // Socket connects after this component loads
+        socket.current.on(
+            "connect",
+            registerFriendRequestListener
+        );
+
+
+        return () => {
+
+            socket.current?.off(
+                "connect",
+                registerFriendRequestListener
+            );
+
+            socket.current?.off(
+                "new_friend_request",
+                handleNewFriendRequest
+            );
+
+        };
+
+    }, [socket]);
 
     async function fetchRequests() {
 
