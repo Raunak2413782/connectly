@@ -126,6 +126,10 @@ function FriendRequests() {
 
             fetchRequests();
 
+            window.dispatchEvent(
+                new Event("friend_request_count_changed")
+            );
+
         } catch (error) {
 
             console.log(error);
@@ -151,6 +155,10 @@ function FriendRequests() {
             );
 
             fetchRequests();
+
+            window.dispatchEvent(
+                new Event("friend_request_count_changed")
+            );
 
         } catch (error) {
 
