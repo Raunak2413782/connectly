@@ -6,6 +6,7 @@ import { useSocket } from "../context/SocketContext";
 function Navbar() {
 
     const [requestCount, setRequestCount] = useState(0);
+    const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
     const socket = useSocket();
 
@@ -58,14 +59,55 @@ function Navbar() {
 
 
     // =========================
-    // LOAD COUNT
+    // GET UNREAD MESSAGE COUNT
+    // =========================
+
+    async function fetchUnreadMessageCount() {
+
+        try {
+
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                return;
+            }
+
+            const response = await API.get(
+                "/messages/unread-count",
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            setUnreadMessageCount(
+                response.data.unreadCount || 0
+            );
+
+        } catch (error) {
+
+            console.log(
+                "Unread message count error:",
+                error
+            );
+
+        }
+
+    }
+
+
+    // =========================
+    // LOAD COUNTS
     // =========================
 
     useEffect(() => {
 
         fetchRequestCount();
+        fetchUnreadMessageCount();
 
     }, [location.pathname]);
+
 
     // =========================
     // REQUEST COUNT CHANGED
@@ -170,6 +212,87 @@ function Navbar() {
 
 
     // =========================
+    // REAL-TIME UNREAD MESSAGE
+    // =========================
+
+    useEffect(() => {
+
+        if (!socket?.current) {
+            return;
+        }
+
+
+        const handleNewMessage = (message) => {
+
+            console.log(
+                "📩 Navbar new message:",
+                message
+            );
+
+
+            const currentUserId =
+                localStorage.getItem("userId");
+
+
+            if (
+                message.receiver?.toString() ===
+                currentUserId?.toString()
+            ) {
+
+                setUnreadMessageCount(
+                    (prev) => prev + 1
+                );
+
+            }
+
+        };
+
+
+        const registerMessageListener = () => {
+
+            console.log(
+                "🟢 Navbar message listener registered"
+            );
+
+            socket.current?.on(
+                "receive_message",
+                handleNewMessage
+            );
+
+        };
+
+
+        if (socket.current.connected) {
+
+            registerMessageListener();
+
+        }
+
+
+        socket.current.on(
+            "connect",
+            registerMessageListener
+        );
+
+
+        return () => {
+
+            socket.current?.off(
+                "connect",
+                registerMessageListener
+            );
+
+            socket.current?.off(
+                "receive_message",
+                handleNewMessage
+            );
+
+        };
+
+    }, [socket]);
+
+
+    // =========================
     // LOGOUT
     // =========================
 
@@ -215,6 +338,8 @@ function Navbar() {
 
                 <div className="flex items-center gap-6">
 
+                    {/* PROFILE */}
+
                     <Link
                         to="/profile"
                         className="text-gray-300 hover:text-green-400"
@@ -222,6 +347,8 @@ function Navbar() {
                         Profile
                     </Link>
 
+
+                    {/* SEARCH */}
 
                     <Link
                         to="/search"
@@ -231,6 +358,8 @@ function Navbar() {
                     </Link>
 
 
+                    {/* FRIENDS */}
+
                     <Link
                         to="/friends"
                         className="text-gray-300 hover:text-green-400"
@@ -239,6 +368,8 @@ function Navbar() {
                     </Link>
 
 
+                    {/* FRIEND REQUESTS */}
+
                     <Link
                         to="/requests"
                         className="relative text-gray-300 hover:text-green-400"
@@ -246,8 +377,6 @@ function Navbar() {
 
                         Friend Requests
 
-
-                        {/* BADGE */}
 
                         {requestCount > 0 && (
 
@@ -261,6 +390,31 @@ function Navbar() {
 
                     </Link>
 
+
+                    {/* CHATS */}
+
+                    <Link
+                        to="/chats"
+                        className="relative text-gray-300 hover:text-green-400"
+                    >
+
+                        Chats
+
+
+                        {unreadMessageCount > 0 && (
+
+                            <span className="absolute -top-3 -right-4 bg-red-500 text-white text-xs font-bold min-w-5 h-5 px-1 rounded-full flex items-center justify-center">
+
+                                {unreadMessageCount}
+
+                            </span>
+
+                        )}
+
+                    </Link>
+
+
+                    {/* LOGOUT */}
 
                     <button
                         onClick={handleLogout}

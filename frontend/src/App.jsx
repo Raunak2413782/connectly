@@ -6,6 +6,7 @@ import SearchUsers from "./pages/SearchUsers";
 import FriendRequests from "./pages/FriendRequests";
 import Friends from "./pages/Friends";
 import Chat from "./pages/Chat";
+import Chats from "./pages/Chats";
 import Navbar from "./components/Navbar";
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           <Route path="/search" element={<SearchUsers />} />
           <Route path="/requests" element={<FriendRequests />} />
           <Route path="/friends" element={<Friends />} />
+          <Route path="/chats" element={<Chats />} />
           <Route path="/chat/:friendId" element={<Chat />} />
         </Routes>
     </BrowserRouter>

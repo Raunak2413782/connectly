@@ -10,7 +10,8 @@ const {
     sendMessage,
     getMessages,
     markMessagesRead,
-    getUnreadCount
+    getUnreadCount,
+    getRecentChats
 } = require("../controllers/messageController");
 
 // =========================
@@ -52,6 +53,18 @@ router.get(
     auth,
 
     getUnreadCount
+);
+
+// =========================
+// GET RECENT CHATS
+// =========================
+
+router.get(
+    "/messages/recent",
+
+    auth,
+
+    getRecentChats
 );
 
 // =========================

@@ -2,6 +2,7 @@ const FriendRequest = require("../models/FriendRequest");
 const Friend = require("../models/Friend");
 const User = require("../models/User");
 const Message = require("../models/Message");
+const mongoose = require("mongoose");
 
 
 // =========================
@@ -308,111 +309,343 @@ exports.getFriends = async (req, res) => {
 
     try {
 
-        const friends = await Friend.find({
+        const currentUserId =
+            new mongoose.Types.ObjectId(req.user.id);
+
+
+        // =========================
+        // GET ALL FRIENDSHIPS
+        // =========================
+
+        const friendships = await Friend.find({
             $or: [
                 { user1: req.user.id },
                 { user2: req.user.id }
             ]
         })
-        .populate(
-            "user1",
+        .select("user1 user2")
+        .lean();
+
+
+        // =========================
+        // GET FRIEND IDS
+        // =========================
+
+        const friendIds = friendships.map((friend) => {
+
+            return friend.user1.toString() === req.user.id
+                ? friend.user2
+                : friend.user1;
+
+        });
+
+
+        // =========================
+        // NO FRIENDS
+        // =========================
+
+        if (friendIds.length === 0) {
+
+            return res.status(200).json({
+
+                success: true,
+
+                friends: []
+
+            });
+
+        }
+
+
+        // =========================
+        // GET FRIEND USERS
+        // =========================
+
+        const friendUsers = await User.find({
+
+            _id: {
+                $in: friendIds
+            }
+
+        })
+        .select(
             "name email isOnline lastSeen"
         )
-        .populate(
-            "user2",
-            "name email isOnline lastSeen"
-        );
+        .lean();
 
 
-        const friendList = await Promise.all(
+        // =========================
+        // GET MESSAGE STATS
+        // =========================
 
-            friends.map(async (friend) => {
+        const messageStats = await Message.aggregate([
 
-                const friendUser =
-                    friend.user1._id.toString() === req.user.id
-                        ? friend.user2
-                        : friend.user1;
-
-
-                // =========================
-                // GET LAST MESSAGE
-                // =========================
-
-                const lastMessage = await Message.findOne({
+            // Only messages between current user
+            // and his friends
+            {
+                $match: {
 
                     $or: [
 
                         {
-                            sender: req.user.id,
-                            receiver: friendUser._id
+                            sender: currentUserId,
+
+                            receiver: {
+                                $in: friendIds
+                            }
                         },
 
                         {
-                            sender: friendUser._id,
-                            receiver: req.user.id
+                            sender: {
+                                $in: friendIds
+                            },
+
+                            receiver: currentUserId
                         }
 
                     ]
 
-                })
-                .sort({ createdAt: -1 })
-                .select("text createdAt sender isRead isDeleted");
+                }
+            },
 
 
-                // =========================
-                // GET UNREAD COUNT
-                // =========================
+            // Find which friend each message belongs to
+            {
+                $set: {
 
-                const unreadCount = await Message.countDocuments({
+                    friendId: {
 
-                    sender: friendUser._id,
+                        $cond: [
 
-                    receiver: req.user.id,
+                            {
+                                $eq: [
+                                    "$sender",
+                                    currentUserId
+                                ]
+                            },
 
-                    isRead: false,
+                            "$receiver",
 
-                    isDeleted: false
+                            "$sender"
 
-                });
+                        ]
+
+                    }
+
+                }
+
+            },
 
 
-                return {
+            // Latest message first
+            {
+                $sort: {
 
-                    _id: friendUser._id,
+                    createdAt: -1
 
-                    name: friendUser.name,
+                }
 
-                    email: friendUser.email,
+            },
 
-                    isOnline: friendUser.isOnline,
 
-                    lastSeen: friendUser.lastSeen,
+            // One result per friend
+            {
+                $group: {
 
-                    lastMessage: lastMessage
-                        ? {
-                            text: lastMessage.isDeleted
-                                ? "This message was deleted"
-                                : lastMessage.text,
+                    _id: "$friendId",
 
-                            createdAt:
-                                lastMessage.createdAt,
 
-                            sender:
-                                lastMessage.sender,
+                    // Latest message
+                    lastMessage: {
 
-                            isDeleted:
-                                lastMessage.isDeleted
+                        $first: {
+
+                            _id: "$_id",
+
+                            text: "$text",
+
+                            sender: "$sender",
+
+                            receiver: "$receiver",
+
+                            createdAt: "$createdAt",
+
+                            isDeleted: "$isDeleted"
+
                         }
-                        : null,
 
-                    unreadCount: unreadCount
+                    },
 
-                };
 
-            })
+                    // Unread messages
+                    unreadCount: {
 
-        );
+                        $sum: {
 
+                            $cond: [
+
+                                {
+                                    $and: [
+
+                                        // Message came FROM friend
+                                        {
+                                            $ne: [
+                                                "$sender",
+                                                currentUserId
+                                            ]
+                                        },
+
+                                        // Message was received by me
+                                        {
+                                            $eq: [
+                                                "$receiver",
+                                                currentUserId
+                                            ]
+                                        },
+
+                                        // Not read
+                                        {
+                                            $eq: [
+                                                "$isRead",
+                                                false
+                                            ]
+                                        },
+
+                                        // Not deleted
+                                        {
+                                            $eq: [
+                                                "$isDeleted",
+                                                false
+                                            ]
+                                        }
+
+                                    ]
+
+                                },
+
+                                1,
+
+                                0
+
+                            ]
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        ]);
+
+
+        // =========================
+        // CREATE MESSAGE MAP
+        // =========================
+
+        const messageMap = new Map();
+
+
+        messageStats.forEach((item) => {
+
+            messageMap.set(
+                item._id.toString(),
+                item
+            );
+
+        });
+
+
+        // =========================
+        // BUILD FRIEND LIST
+        // =========================
+
+        const friendList = friendUsers.map((friendUser) => {
+
+            const friendId =
+                friendUser._id.toString();
+
+
+            const stats =
+                messageMap.get(friendId);
+
+
+            const lastMessage =
+                stats?.lastMessage;
+
+
+            return {
+
+                _id: friendUser._id,
+
+                name: friendUser.name,
+
+                email: friendUser.email,
+
+                isOnline: friendUser.isOnline,
+
+                lastSeen: friendUser.lastSeen,
+
+
+                lastMessage: lastMessage
+                    ? {
+
+                        text: lastMessage.isDeleted
+                            ? "This message was deleted"
+                            : lastMessage.text,
+
+                        createdAt:
+                            lastMessage.createdAt,
+
+                        sender:
+                            lastMessage.sender,
+
+                        isDeleted:
+                            lastMessage.isDeleted
+
+                    }
+                    : null,
+
+
+                unreadCount:
+                    stats?.unreadCount || 0
+
+            };
+
+        });
+
+
+        // =========================
+        // SORT BY LAST MESSAGE
+        // =========================
+
+        friendList.sort((a, b) => {
+
+            const dateA =
+                a.lastMessage?.createdAt
+                    ? new Date(
+                        a.lastMessage.createdAt
+                    ).getTime()
+                    : 0;
+
+
+            const dateB =
+                b.lastMessage?.createdAt
+                    ? new Date(
+                        b.lastMessage.createdAt
+                    ).getTime()
+                    : 0;
+
+
+            return dateB - dateA;
+
+        });
+
+
+        // =========================
+        // RESPONSE
+        // =========================
 
         return res.status(200).json({
 
@@ -429,6 +662,7 @@ exports.getFriends = async (req, res) => {
             "Get friends error:",
             error
         );
+
 
         return res.status(500).json({
 

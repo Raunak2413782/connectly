@@ -1,6 +1,7 @@
 const Message = require("../models/Message");
 const Friend = require("../models/Friend");
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 // =========================
 // SEND MESSAGE
@@ -279,6 +280,166 @@ exports.getUnreadCount = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Server Error"
+        });
+
+    }
+
+};
+
+// =========================
+// GET RECENT CHATS
+// =========================
+
+exports.getRecentChats = async (req, res) => {
+
+    try {
+
+        // Get all friendships
+        const friendships = await Friend.find({
+            $or: [
+                { user1: req.user.id },
+                { user2: req.user.id }
+            ]
+        }).lean();
+
+        // Get friend IDs
+        const friendIds = friendships.map((friendship) => {
+
+            return friendship.user1.toString() === req.user.id
+                ? friendship.user2
+                : friendship.user1;
+
+        });
+
+        if (friendIds.length === 0) {
+
+            return res.status(200).json({
+                success: true,
+                chats: []
+            });
+
+        }
+
+        // Get all friends in ONE query
+        const friends = await User.find({
+            _id: { $in: friendIds }
+        })
+        .select("name email isOnline lastSeen")
+        .lean();
+
+
+        // Get all messages in ONE query
+        const messages = await Message.find({
+            $or: [
+                {
+                    sender: req.user.id,
+                    receiver: { $in: friendIds }
+                },
+                {
+                    sender: { $in: friendIds },
+                    receiver: req.user.id
+                }
+            ]
+        })
+        .select(
+            "sender receiver text createdAt isDeleted isRead"
+        )
+        .sort({ createdAt: -1 })
+        .lean();
+
+
+        // Build chats
+        const chats = friends.map((friend) => {
+
+            const friendId = friend._id.toString();
+
+
+            // Latest message with this friend
+            const lastMessage = messages.find((message) => {
+
+                return (
+                    (
+                        message.sender.toString() === req.user.id &&
+                        message.receiver.toString() === friendId
+                    ) ||
+                    (
+                        message.sender.toString() === friendId &&
+                        message.receiver.toString() === req.user.id
+                    )
+                );
+
+            });
+
+
+            // Unread messages from this friend
+            const unreadCount = messages.filter((message) => {
+
+                return (
+                    message.sender.toString() === friendId &&
+                    message.receiver.toString() === req.user.id &&
+                    message.isRead === false
+                );
+
+            }).length;
+
+
+            return {
+
+                friend,
+
+                lastMessage,
+
+                unreadCount
+
+            };
+
+        });
+
+
+        // Only show users with at least one message
+        const recentChats = chats.filter((chat) => {
+
+            return chat.lastMessage !== null;
+
+        });
+
+
+        // Latest chats first
+        recentChats.sort((a, b) => {
+
+            const dateA =
+                new Date(a.lastMessage.createdAt).getTime();
+
+            const dateB =
+                new Date(b.lastMessage.createdAt).getTime();
+
+            return dateB - dateA;
+
+        });
+
+
+        return res.status(200).json({
+
+            success: true,
+
+            chats: recentChats
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "Get recent chats error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: "Server Error"
+
         });
 
     }
